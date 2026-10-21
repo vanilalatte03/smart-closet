@@ -431,6 +431,7 @@ Google-only 계정:
 - `material`은 현재 `ClothingMaterial` enum 중 하나다.
 - `minTemperature <= maxTemperature`여야 한다.
 - `styleTags`는 `null`이면 빈 배열로 처리하고 각 항목은 최대 30자다.
+- `styleTags` 배열 내부의 `null` 요소는 허용하지 않는다. 등록·수정 모두 HTTP `400`, `METHOD_ARGUMENT_NOT_VALID`를 반환하며 `details`에 `styleTags[1]`처럼 문제가 있는 요소의 인덱스를 포함한 필드 경로를 제공한다.
 - 옷 정보 저장은 JSON API다. 이미지 업로드나 AI 분석 multipart API와 합치지 않는다.
 
 ### ClothingResponse

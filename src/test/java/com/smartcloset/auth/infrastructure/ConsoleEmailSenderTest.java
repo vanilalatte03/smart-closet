@@ -2,6 +2,7 @@ package com.smartcloset.auth.infrastructure;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
@@ -33,7 +34,9 @@ class ConsoleEmailSenderTest {
                 .contains("2026-06-21T12:00:00Z\tEMAIL_VERIFICATION\tdemo@example.com\tSECRET_ACTION_TOKEN");
         assertThat(output)
                 .contains("account_email_written")
-                .contains(outboxPath.toAbsolutePath().toString())
                 .doesNotContain("SECRET_ACTION_TOKEN");
+        String absolutePath = outboxPath.toAbsolutePath().toString();
+        assertThat(output.getAll())
+                .containsAnyOf(absolutePath, new ObjectMapper().writeValueAsString(absolutePath));
     }
 }

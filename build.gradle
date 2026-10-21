@@ -48,12 +48,36 @@ dependencies {
 configurations.configureEach {
     resolutionStrategy.eachDependency { details ->
         if (details.requested.group == 'io.netty') {
-            details.useVersion '4.2.15.Final'
+            details.useVersion '4.2.17.Final'
             details.because 'CI security gate requires Netty versions with current high/critical CVE fixes'
         }
         if (details.requested.group == 'org.apache.tomcat.embed') {
-            details.useVersion '11.0.22'
+            details.useVersion '11.0.25'
             details.because 'CI security gate requires Tomcat versions with current high/critical CVE fixes'
+        }
+        if (details.requested.group == 'org.springframework') {
+            details.useVersion '7.0.9'
+            details.because 'CI image scan requires patched Spring Framework modules'
+        }
+        if (details.requested.group == 'org.springframework.data'
+                && details.requested.name == 'spring-data-commons') {
+            details.useVersion '4.0.6'
+            details.because 'CI image scan requires patched Spring Data Commons'
+        }
+        if (details.requested.group == 'io.micrometer'
+                && details.requested.name in ['micrometer-core', 'micrometer-commons',
+                                            'micrometer-observation', 'micrometer-registry-prometheus']) {
+            details.useVersion '1.16.6'
+            details.because 'Keep Micrometer metrics modules aligned with the security patch'
+        }
+        if (details.requested.group == 'com.fasterxml.jackson.core'
+                && details.requested.name in ['jackson-core', 'jackson-databind']) {
+            details.useVersion '2.21.7'
+            details.because 'CI image scan requires patched Jackson 2 JSON processing'
+        }
+        if (details.requested.group == 'tools.jackson.core') {
+            details.useVersion '3.1.7'
+            details.because 'CI image scan requires patched Jackson 3 JSON processing'
         }
     }
 }

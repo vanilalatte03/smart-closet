@@ -148,6 +148,8 @@ docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD":/workspac
 
 CI security gate는 fix 가능한 `HIGH`/`CRITICAL` 취약점을 실패 처리한다. Frontend dependency는 `npm audit`과 Trivy filesystem scan으로 차단하고, backend runtime library 취약점은 app image scan의 `app.jar` 분석으로 확인한다. `ignore-unfixed`로 인해 현재 fix가 없는 항목은 차단하지 않지만, 예외를 suppression으로 둘 때는 ADR이나 보안 문서에 취약점 ID, 영향 범위, 만료일, 보완 통제를 기록한다.
 
+Spring Boot 4.0.6 기준에서 추가 보안 패치가 필요한 runtime library는 `build.gradle`의 dependency resolution 규칙으로 버전을 지정한다. 버전 조정 시 전체 backend test, coverage, build와 CI app image scan을 함께 검증한다.
+
 CI quality gate smoke:
 
 ```bash
