@@ -7,6 +7,8 @@ import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public record ClothingRequest(
@@ -37,7 +39,8 @@ public record ClothingRequest(
 ) {
 
     public ClothingRequest {
-        styleTags = styleTags == null ? List.of() : List.copyOf(styleTags);
+        // null 요소는 생성자가 아닌 Bean Validation에서 필드 오류로 처리한다.
+        styleTags = styleTags == null ? List.of() : Collections.unmodifiableList(new ArrayList<>(styleTags));
     }
 
     @AssertTrue(message = "minTemperature must be less than or equal to maxTemperature")

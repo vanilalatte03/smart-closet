@@ -131,6 +131,93 @@ class ClothingControllerTest {
     }
 
     @Test
+    void rejectsNullStyleTagOnCreateWithoutPersistingClothing() throws Exception {
+        User user = userRepository.save(User.createSeedUser("null-style-create-user"));
+        Map<String, Object> request = validRequest();
+        request.put("styleTags", java.util.Arrays.asList("MINIMAL", null));
+        long countBefore = clothingItemRepository.count();
+
+        MvcResult result = mockMvc.perform(post("/api/clothes")
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken(user))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andReturn();
+
+        assertThat(clothingItemRepository.count()).isEqualTo(countBefore);
+        assertThat(result.getResponse().getStatus()).isEqualTo(400);
+        JsonNode error = objectMapper.readTree(result.getResponse().getContentAsString());
+        assertThat(error.path("code").asText()).isEqualTo("METHOD_ARGUMENT_NOT_VALID");
+        assertThat(error.path("details").findValuesAsText("field")).contains("styleTags[1]");
+        assertThat(error.path("details").findValuesAsText("message")).contains("style tag must not be null");
+    }
+
+    @Test
+    void rejectsNullStyleTagOnUpdateWithoutChangingClothing() throws Exception {
+        User user = userRepository.save(User.createSeedUser("null-style-update-user"));
+        ClothingItem clothing = clothingItemRepository.save(createTop(user, "화이트 셔츠"));
+        clothingItemRepository.flush();
+        MvcResult before = mockMvc.perform(get("/api/clothes/{clothingId}", clothing.getId())
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken(user)))
+                .andExpect(status().isOk())
+                .andReturn();
+        Map<String, Object> request = validRequest();
+        request.put("styleTags", java.util.Arrays.asList("MINIMAL", null));
+
+        MvcResult result = mockMvc.perform(put("/api/clothes/{clothingId}", clothing.getId())
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken(user))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andReturn();
+
+        clothingItemRepository.flush();
+        MvcResult after = mockMvc.perform(get("/api/clothes/{clothingId}", clothing.getId())
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken(user)))
+                .andExpect(status().isOk())
+                .andReturn();
+        assertThat(objectMapper.readTree(after.getResponse().getContentAsString()))
+                .isEqualTo(objectMapper.readTree(before.getResponse().getContentAsString()));
+        assertThat(result.getResponse().getStatus()).isEqualTo(400);
+        JsonNode error = objectMapper.readTree(result.getResponse().getContentAsString());
+        assertThat(error.path("code").asText()).isEqualTo("METHOD_ARGUMENT_NOT_VALID");
+        assertThat(error.path("details").findValuesAsText("field")).contains("styleTags[1]");
+        assertThat(error.path("details").findValuesAsText("message")).contains("style tag must not be null");
+    }
+
+    @Test
+    void treatsNullStyleTagsAsEmptyOnCreateAndUpdate() throws Exception {
+        User user = userRepository.save(User.createSeedUser("null-style-list-user"));
+        Map<String, Object> request = validRequest();
+        request.put("styleTags", null);
+
+        MvcResult result = mockMvc.perform(post("/api/clothes")
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken(user))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.styleTags").isArray())
+                .andExpect(jsonPath("$.data.styleTags").isEmpty())
+                .andReturn();
+        long clothingId = objectMapper.readTree(result.getResponse().getContentAsString())
+                .path("data").path("id").asLong();
+        Map<String, Object> taggedRequest = validRequest();
+        taggedRequest.put("styleTags", List.of("MINIMAL"));
+        mockMvc.perform(put("/api/clothes/{clothingId}", clothingId)
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken(user))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(taggedRequest)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.styleTags[0]").value("MINIMAL"));
+
+        mockMvc.perform(put("/api/clothes/{clothingId}", clothingId)
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken(user))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.styleTags").isArray())
+                .andExpect(jsonPath("$.data.styleTags").isEmpty());
+    }
+
+    @Test
     void clothingApisRequireBearerToken() throws Exception {
         Map<String, Object> request = validRequest();
 
