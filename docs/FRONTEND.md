@@ -10,6 +10,7 @@ AI는 form 값을 자동 저장하지 않는다. 사용자가 사진을 선택�
 
 ## 기술 기준
 
+- 개발·테스트에는 Node.js 22.12 이상인 22.x 또는 24.x, 26 이상을 사용한다. Vitest 5의 런타임 요구사항이며 CI와 frontend Docker build는 Node.js 22를 사용한다.
 - React
 - Vite
 - TypeScript strict
