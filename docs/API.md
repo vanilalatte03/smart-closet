@@ -463,6 +463,10 @@ Google-only 계정:
 - `DELETE /api/clothes/{clothingId}/image`는 이미지가 없어도 성공한다.
 - 허용 파일은 5MB 이하 jpg/jpeg/png/webp다.
 - MIME type은 `image/jpeg`, `image/png`, `image/webp`만 허용한다.
+- 확장자, MIME type, 파일 signature가 일치해야 하며 실제 첫 이미지가 디코딩되어야 한다. WebP는 lossy/lossless 파일을 검증한다.
+- JPEG/PNG 종료 marker와 WebP RIFF 길이를 확인하고, 디코더 오류 또는 경고가 발생한 파일은 거절한다.
+- 디코딩 전에 가로 × 세로가 20,000,000픽셀 이하인지 확인한다.
+- 손상 파일 또는 픽셀 제한 초과는 `400 INVALID_REQUEST`와 `details[].field=image`로 실패한다. 실패한 업로드/교체는 기존 이미지 파일과 metadata를 변경하지 않는다.
 - 원본 파일명은 저장 경로에 사용하지 않는다.
 
 ## 9. Clothing Analysis API
@@ -480,6 +484,8 @@ Multipart part:
 | Name | Required | Description |
 | --- | --- | --- |
 | `image` | yes | 분석할 옷 사진. 기존 옷 이미지 검증 규칙과 같은 파일 형식을 사용한다. |
+
+이미지 분석에도 위 Clothing image API의 디코딩 및 픽셀 제한을 동일하게 적용한다. 이미지 검증에 실패하면 일일 분석 횟수를 차감하거나 분석 provider를 호출하지 않는다.
 
 성공 응답:
 

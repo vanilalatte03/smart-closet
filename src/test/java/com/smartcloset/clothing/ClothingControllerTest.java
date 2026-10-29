@@ -21,6 +21,7 @@ import com.smartcloset.clothing.infrastructure.file.ClothingImageProperties;
 import com.smartcloset.clothing.repository.ClothingItemRepository;
 import com.smartcloset.security.CurrentUserPrincipal;
 import com.smartcloset.security.JwtTokenProvider;
+import com.smartcloset.support.TestClothingImages;
 import com.smartcloset.user.domain.User;
 import com.smartcloset.user.domain.UserRole;
 import com.smartcloset.user.repository.UserRepository;
@@ -30,6 +31,8 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpHeaders;
@@ -748,6 +751,59 @@ class ClothingControllerTest {
     }
 
     @Test
+    void returnsInvalidRequestForCorruptAnalysisImage() throws Exception {
+        User user = userRepository.save(User.createSeedUser("analysis-corrupt-image-user"));
+        mockMvc.perform(multipart("/api/clothes/analyze-image")
+                        .file(corruptJpegFile())
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken(user)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
+                .andExpect(jsonPath("$.details[0].field").value("image"))
+                .andExpect(jsonPath("$.details[0].message").value("손상되었거나 읽을 수 없는 이미지입니다."));
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void rejectsCorruptUploadWithoutChangingMetadataOrFiles(boolean replacing) throws Exception {
+        User user = userRepository.save(User.createSeedUser("corrupt-upload-" + replacing));
+        ClothingItem clothing = clothingItemRepository.save(createTop(user, "손상 파일 검증 셔츠"));
+        clothingItemRepository.flush();
+        if (replacing) {
+            uploadImage(user, clothing.getId(), jpegFile("original.jpg"));
+        }
+        String previousFilename = clothing.getImageStoredFilename();
+        var previousUploadedAt = clothing.getImageUploadedAt();
+        Long previousSize = clothing.getImageSizeBytes();
+        List<Path> previousFiles;
+        try (var files = Files.list(Path.of(clothingImageProperties.storageDir()))) {
+            previousFiles = files.toList();
+        }
+
+        mockMvc.perform(multipart("/api/clothes/{clothingId}/image", clothing.getId())
+                        .file(corruptJpegFile())
+                        .with(request -> {
+                            request.setMethod("PUT");
+                            return request;
+                        })
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken(user)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
+                .andExpect(jsonPath("$.details[0].field").value("image"))
+                .andExpect(jsonPath("$.details[0].message").value("손상되었거나 읽을 수 없는 이미지입니다."));
+
+        ClothingItem unchanged = clothingItemRepository.findById(clothing.getId()).orElseThrow();
+        assertThat(unchanged.getImageStoredFilename()).isEqualTo(previousFilename);
+        assertThat(unchanged.getImageUploadedAt()).isEqualTo(previousUploadedAt);
+        assertThat(unchanged.getImageSizeBytes()).isEqualTo(previousSize);
+        try (var files = Files.list(Path.of(clothingImageProperties.storageDir()))) {
+            assertThat(files.toList()).containsExactlyInAnyOrderElementsOf(previousFiles);
+        }
+        if (replacing) {
+            assertThat(Files.readAllBytes(testStoragePath(previousFilename))).containsExactly(jpegBytes());
+        }
+    }
+
+    @Test
     void returnsInvalidRequestWhenAnalysisImageValidationFails() throws Exception {
         User user = userRepository.save(User.createSeedUser("analysis-invalid-image-user"));
         MockMultipartFile invalidImage = new MockMultipartFile(
@@ -841,11 +897,15 @@ class ClothingControllerTest {
     }
 
     private byte[] jpegBytes() {
-        return new byte[] {(byte) 0xff, (byte) 0xd8, (byte) 0xff, 0x01, 0x02};
+        return TestClothingImages.jpeg();
+    }
+
+    private MockMultipartFile corruptJpegFile() {
+        return jpegFile("broken.jpg", new byte[] {(byte) 0xff, (byte) 0xd8, (byte) 0xff, 0x01});
     }
 
     private byte[] replacementJpegBytes() {
-        return new byte[] {(byte) 0xff, (byte) 0xd8, (byte) 0xff, 0x09, 0x08, 0x07};
+        return TestClothingImages.jpeg(0x123456);
     }
 
     private Path testStoragePath(String storedFilename) {

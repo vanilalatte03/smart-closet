@@ -155,6 +155,10 @@ POST /api/clothes/analyze-image
 
 - multipart part 이름은 `image`다.
 - 허용 파일은 기존 옷 이미지 API와 같은 5MB 이하 jpg/jpeg/png/webp다.
+- 업로드/교체와 분석은 `ClothingImageValidator`를 공유한다. 확장자/MIME/signature, 종료 marker 또는 RIFF 길이, 첫 이미지의 실제 디코딩을 확인하며 디코더 오류/경고는 `INVALID_REQUEST`로 변환한다.
+- 디코딩 전 가로 × 세로를 20,000,000픽셀로 제한한다. JPEG/PNG는 JDK ImageIO, WebP lossy/lossless는 TwelveMonkeys `imageio-webp` 플러그인을 사용한다.
+- 검증은 `MemoryCacheImageInputStream`을 사용해 ImageIO 검증용 디스크 캐시를 만들지 않는다. 검증은 원본 bytes를 변환하거나 리사이즈하지 않는다.
+- 이미지 검증은 분석 일일 제한 차감과 provider 호출 전에 완료한다. 검증 실패 시 기존 이미지 파일과 metadata를 변경하지 않는다.
 - 분석 이미지는 DB나 파일 저장소에 저장하지 않는다.
 - 분석 결과도 DB, 추천 이력, 옷 이미지 metadata에 저장하지 않는다.
 - 옷으로 보기 어려운 사진은 `analyzable=false` 성공 응답으로 처리한다.
