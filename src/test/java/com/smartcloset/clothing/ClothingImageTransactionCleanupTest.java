@@ -10,6 +10,7 @@ import com.smartcloset.clothing.domain.ClothingMaterial;
 import com.smartcloset.clothing.infrastructure.file.ClothingImageStorage;
 import com.smartcloset.clothing.infrastructure.file.StoredClothingImage;
 import com.smartcloset.clothing.repository.ClothingItemRepository;
+import com.smartcloset.support.TestClothingImages;
 import com.smartcloset.user.application.AccountDeletionService;
 import com.smartcloset.user.domain.User;
 import com.smartcloset.user.dto.AccountDeletionRequest;
@@ -208,7 +209,7 @@ class ClothingImageTransactionCleanupTest {
     }
 
     private byte[] jpegBytes(int marker) {
-        return new byte[] {(byte) 0xff, (byte) 0xd8, (byte) 0xff, (byte) marker};
+        return TestClothingImages.jpeg(marker);
     }
 
     private String currentStoredFilename(Long clothingId) {

@@ -20,6 +20,7 @@ import com.smartcloset.clothing.infrastructure.file.ClothingImageValidator;
 import com.smartcloset.common.exception.ErrorCode;
 import com.smartcloset.common.exception.SmartClosetException;
 import com.smartcloset.common.observability.SmartClosetMetrics;
+import com.smartcloset.support.TestClothingImages;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.List;
 import java.util.Map;
@@ -146,6 +147,24 @@ class ClothingAnalysisServiceTest {
     }
 
     @Test
+    void corruptImageDoesNotCallProviderOrConsumeDailyLimit() {
+        analysisProperties.setDailyLimit(1);
+        MockMultipartFile corrupt = new MockMultipartFile("image", "broken.jpg", "image/jpeg",
+                new byte[] {(byte) 0xff, (byte) 0xd8, (byte) 0xff, 0x01});
+
+        assertThatThrownBy(() -> service.analyze(1L, corrupt))
+                .isInstanceOfSatisfying(SmartClosetException.class, exception -> {
+                    assertThat(exception.errorCode()).isEqualTo(ErrorCode.INVALID_REQUEST);
+                    assertThat(exception.details().getFirst().field()).isEqualTo("image");
+                });
+        assertThat(analyzer.lastImage).isNull();
+        assertThat(analysisRequestCount("invalid_request")).isEqualTo(1.0);
+
+        assertThat(service.analyze(1L, jpegFile()).analyzable()).isFalse();
+        assertThat(analyzer.lastImage).isNotNull();
+    }
+
+    @Test
     void invalidImageFailsBeforeAnalyzer() {
         MockMultipartFile invalid = new MockMultipartFile("image", "image.gif", "image/gif", new byte[] {'G'});
 
@@ -169,7 +188,7 @@ class ClothingAnalysisServiceTest {
     }
 
     private byte[] jpegBytes() {
-        return new byte[] {(byte) 0xff, (byte) 0xd8, (byte) 0xff, 0x01};
+        return TestClothingImages.jpeg();
     }
 
     private static class FakeAnalyzer implements ClothingImageAnalyzer {

@@ -190,7 +190,7 @@ http://localhost:8080/swagger-ui/index.html
 - AI 분석 기능 비활성: `503 CLOTHING_ANALYSIS_DISABLED`
 - AI 분석 provider 장애 또는 timeout: `503 CLOTHING_ANALYSIS_UNAVAILABLE`
 - AI 분석 일일 제한 초과: `429 CLOTHING_ANALYSIS_LIMIT_EXCEEDED`
-- 잘못된 분석 이미지 형식 또는 크기 초과: `400 INVALID_REQUEST`
+- 잘못된 이미지 형식, 크기 초과, 손상 파일 또는 20,000,000픽셀 초과: 업로드/교체와 분석 모두 `400 INVALID_REQUEST`, `details[].field=image`
 - 로그인 실패 반복 제한 초과: `429 LOGIN_ATTEMPT_LIMIT_EXCEEDED`
 - 추천 생성 반복 호출 제한 초과: `429 RECOMMENDATION_CREATION_LIMIT_EXCEEDED`
 - 미인증 password 계정 login: `403 EMAIL_VERIFICATION_REQUIRED`
@@ -201,6 +201,13 @@ http://localhost:8080/swagger-ui/index.html
 - Google provider 설정 없음: provider status `enabled=false`
 - 계정 삭제 confirmation 누락: `400 INVALID_REQUEST`
 - 계정 삭제 password 불일치: `401 UNAUTHORIZED`
+
+### 손상 이미지 검증
+
+1. 정상 JPEG/PNG/WebP 사진으로 업로드와 분석이 기존 흐름대로 동작하는지 확인한다. WebP는 lossy/lossless 파일을 각각 사용한다.
+2. 파일 signature는 유지하고 본문을 자른 파일을 `PUT /api/clothes/{clothingId}/image`와 `POST /api/clothes/analyze-image`로 전송한다.
+3. 두 API가 `400 INVALID_REQUEST`와 `image` 필드 오류를 반환하며, 교체 실패 후 기존 이미지와 metadata가 유지되는지 확인한다.
+4. 분석 기능이 활성화된 테스트 환경에서 손상 파일을 보낸 뒤 정상 사진을 분석해 손상 파일이 일일 한도를 소비하지 않았는지 확인한다. provider 미호출 여부는 서비스 회귀 테스트로 검증한다.
 
 ## 완료 기준
 

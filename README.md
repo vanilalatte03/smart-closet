@@ -105,6 +105,8 @@ MVP10은 Spring AI와 OpenAI `gpt-5.4-nano`로 사진을 분석해 옷 등록 �
 
 옷 JSON API를 multipart로 바꾸지 않고 이미지 업로드/조회/삭제를 별도 보호 API로 분리했습니다. 파일 bytes는 파일 시스템 또는 volume에 저장하고 DB에는 metadata만 둡니다. AI 분석용 이미지는 후보 제안에만 쓰고 저장하지 않습니다.
 
+업로드와 AI 분석 전에 실제 이미지 디코딩과 2천만 픽셀 제한을 확인해 손상 파일을 거절합니다. 파일 형식과 오류 응답은 [이미지 API 계약](docs/API.md#clothing-image-api)을 따릅니다.
+
 **Actuator와 Prometheus 기반 운영 baseline**
 
 운영 준비 범위에서는 Spring Boot Actuator의 health/prometheus endpoint를 열고, 추천 생성, KMA provider, OpenAI 옷 분석 provider outcome과 duration을 Micrometer metric으로 기록합니다. Alertmanager receiver나 외부 SaaS 연동은 포함하지 않고, `monitoring/` 아래 Prometheus alert rule과 Grafana dashboard baseline으로 운영 확인 지점을 먼저 고정합니다. 관련 결정은 ADR-018입니다.
