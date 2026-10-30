@@ -78,14 +78,17 @@ public final class RecommendationScoringBenchmark {
     }
 
     private static void evaluate(Fixture fixture, String mode) {
+        List<ClothingColor> preferredColors = List.of(ClothingColor.NAVY);
+        List<ClothingMaterial> preferredMaterials = List.of(ClothingMaterial.COTTON);
+        List<String> preferredTags = List.of(" OFFICE ", "미니멀");
         Function<OutfitCandidate, RecommendationScore> scoreCandidate = mode.equals("prepared")
                 ? fixture.scorer.prepare(
                         fixture.weather, fixture.wearHistories, fixture.histories, fixture.requestedAt,
-                        List.of(ClothingColor.NAVY), List.of(ClothingMaterial.COTTON), List.of(" OFFICE ", "미니멀"),
+                        preferredColors, preferredMaterials, preferredTags,
                         RecommendationSituation.WORK)
                 : candidate -> fixture.scorer.score(
                 candidate, fixture.weather, fixture.wearHistories, fixture.histories, fixture.requestedAt,
-                List.of(ClothingColor.NAVY), List.of(ClothingMaterial.COTTON), List.of(" OFFICE ", "미니멀"),
+                preferredColors, preferredMaterials, preferredTags,
                 RecommendationSituation.WORK
         );
         ScoredOutfitCandidate[] best = new ScoredOutfitCandidate[1];
