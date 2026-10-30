@@ -23,6 +23,7 @@ git config core.hooksPath .githooks
 | frontend-audit | `cd frontend && npm audit --audit-level=high` | yes | 프론트엔드 dependency high 이상 취약점 확인 |
 | lint | `python3 -m compileall scripts` | no | Harness 운영 스크립트 문법 검사 |
 | test | `./gradlew test` | yes | Spring Boot/JUnit 테스트 실행 |
+| recommendation-benchmark | `./gradlew recommendationBenchmark` | no | DB/외부 API 없이 추천 계산 시간과 누적 객체 할당량 비교. [측정 방법](performance/recommendation-scoring-context.md) 참고 |
 | backend-static-analysis | `./gradlew checkstyleMain checkstyleTest` | yes | Checkstyle 기반 backend 정적 분석 |
 | backend-coverage | `./gradlew jacocoTestReport jacocoTestCoverageVerification` | yes | JaCoCo report 생성 및 line coverage 60% 하한 검증 |
 | migration-smoke | `./gradlew test --tests com.smartcloset.persistence.SchemaMigrationSmokeTest` | yes | Flyway baseline migration 후 Hibernate validate 검증 |

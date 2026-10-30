@@ -233,20 +233,14 @@ public class RecommendationService {
             RecommendationSituation situation
     ) {
         ScoredOutfitCandidate[] best = new ScoredOutfitCandidate[1];
+        var scoreCandidate = recommendationScorer.prepare(
+                condition, wearHistories, recommendationHistories, requestedAt,
+                preferredColors, preferredMaterials, preferredStyleTags, situation
+        );
         outfitCandidateGenerator.forEach(filteredClothes, condition, candidate -> {
             ScoredOutfitCandidate scored = new ScoredOutfitCandidate(
                     candidate,
-                    recommendationScorer.score(
-                            candidate,
-                            condition,
-                            wearHistories,
-                            recommendationHistories,
-                            requestedAt,
-                            preferredColors,
-                            preferredMaterials,
-                            preferredStyleTags,
-                            situation
-                    )
+                    scoreCandidate.apply(candidate)
             );
             best[0] = best[0] == null ? scored : recommendationScorer.betterOf(scored, best[0], condition);
         });

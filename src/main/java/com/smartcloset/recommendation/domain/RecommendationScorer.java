@@ -8,10 +8,13 @@ import com.smartcloset.weather.domain.WeatherCondition;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.EnumSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -28,6 +31,54 @@ public class RecommendationScorer {
     private static final int MAX_RECOMMENDATION_HISTORY_SCORE = 10;
     private static final int MAX_PREFERENCE_SCORE = 10;
     private static final Comparator<Long> ID_ASC = Comparator.nullsLast(Long::compareTo);
+
+    /**
+     * 한 요청의 후보 순회에만 사용하는 계산 함수를 만든다. 옷별 태그는 최초 사용 시 한 번만 읽는다.
+     * 반환 함수는 요청/스레드 사이에 공유하거나 옷을 수정하면서 재사용하지 않는다.
+     */
+    public Function<OutfitCandidate, RecommendationScore> prepare(
+            WeatherCondition weather,
+            List<WearHistorySnapshot> wearHistories,
+            List<RecommendationHistorySnapshot> recommendationHistories,
+            LocalDateTime requestedAt,
+            List<ClothingColor> preferredColors,
+            List<ClothingMaterial> preferredMaterials,
+            List<String> preferredStyleTags,
+            RecommendationSituation situation
+    ) {
+        Objects.requireNonNull(weather, "weather must not be null");
+        Objects.requireNonNull(wearHistories, "wearHistories must not be null");
+        Objects.requireNonNull(recommendationHistories, "recommendationHistories must not be null");
+        Objects.requireNonNull(requestedAt, "requestedAt must not be null");
+        Objects.requireNonNull(preferredColors, "preferredColors must not be null");
+        Objects.requireNonNull(preferredMaterials, "preferredMaterials must not be null");
+        Objects.requireNonNull(preferredStyleTags, "preferredStyleTags must not be null");
+        Set<String> preferredTags = styleTagKeys(preferredStyleTags);
+        Set<String> situationTags = situationStyleTagKeys(situation);
+        Map<ClothingItem, Set<String>> itemTags = new IdentityHashMap<>();
+        return candidate -> score(
+                candidate, weather, wearHistories, recommendationHistories, requestedAt,
+                preferredColors, preferredMaterials,
+                preparedStyleTagScore(candidate, preferredTags, situationTags, itemTags)
+        );
+    }
+
+    private int preparedStyleTagScore(
+            OutfitCandidate candidate,
+            Set<String> preferredTags,
+            Set<String> situationTags,
+            Map<ClothingItem, Set<String>> itemTags
+    ) {
+        boolean preferredMatch = false;
+        boolean situationMatch = false;
+        for (ClothingItem item : candidate.items()) {
+            Set<String> tags = itemTags.computeIfAbsent(item, clothing ->
+                    styleTagKeys(readStyleTags(clothing.getStyleTagsJson())));
+            preferredMatch |= intersects(tags, preferredTags);
+            situationMatch |= intersects(tags, situationTags);
+        }
+        return (preferredMatch ? 2 : 0) + (situationMatch ? 1 : 0);
+    }
 
     /**
      * 생성된 모든 코디 후보에 동일한 사용자/날씨/이력 컨텍스트를 적용해 점수 모델로 변환한다.
@@ -119,6 +170,20 @@ public class RecommendationScorer {
         Objects.requireNonNull(preferredMaterials, "preferredMaterials must not be null");
         Objects.requireNonNull(preferredStyleTags, "preferredStyleTags must not be null");
 
+        return score(candidate, weather, wearHistories, recommendationHistories, requestedAt,
+                preferredColors, preferredMaterials, calculateStyleTagScore(candidate, preferredStyleTags, situation));
+    }
+
+    private RecommendationScore score(
+            OutfitCandidate candidate,
+            WeatherCondition weather,
+            List<WearHistorySnapshot> wearHistories,
+            List<RecommendationHistorySnapshot> recommendationHistories,
+            LocalDateTime requestedAt,
+            List<ClothingColor> preferredColors,
+            List<ClothingMaterial> preferredMaterials,
+            int styleTagScore
+    ) {
         int weatherScore = calculateWeatherScore(candidate, weather);
         int colorScore = calculateColorScore(candidate);
         int wearHistoryScore = calculateWearHistoryScore(candidate, wearHistories, requestedAt);
@@ -131,8 +196,7 @@ public class RecommendationScorer {
                 candidate,
                 preferredColors,
                 preferredMaterials,
-                preferredStyleTags,
-                situation,
+                styleTagScore,
                 recommendationHistories,
                 requestedAt,
                 weather
@@ -324,6 +388,20 @@ public class RecommendationScorer {
         Objects.requireNonNull(requestedAt, "requestedAt must not be null");
         Objects.requireNonNull(weather, "weather must not be null");
 
+        return calculatePreferenceScore(candidate, preferredColors, preferredMaterials,
+                calculateStyleTagScore(candidate, preferredStyleTags, situation),
+                recommendationHistories, requestedAt, weather);
+    }
+
+    private int calculatePreferenceScore(
+            OutfitCandidate candidate,
+            List<ClothingColor> preferredColors,
+            List<ClothingMaterial> preferredMaterials,
+            int styleTagScore,
+            List<RecommendationHistorySnapshot> recommendationHistories,
+            LocalDateTime requestedAt,
+            WeatherCondition weather
+    ) {
         int score = 0;
         if (!preferredColors.isEmpty()
                 && candidate.stream().map(ClothingItem::getColor).anyMatch(preferredColors::contains)) {
@@ -333,7 +411,7 @@ public class RecommendationScorer {
                 && candidate.stream().map(ClothingItem::getMaterial).anyMatch(preferredMaterials::contains)) {
             score += 2;
         }
-        score += calculateStyleTagScore(candidate, preferredStyleTags, situation);
+        score += styleTagScore;
         score += calculateFeedbackAdjustment(candidate, recommendationHistories, requestedAt, weather);
         return clamp(score, 0, MAX_PREFERENCE_SCORE);
     }

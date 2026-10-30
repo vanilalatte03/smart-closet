@@ -92,6 +92,20 @@ tasks.named('test') {
     finalizedBy tasks.named('jacocoTestReport')
 }
 
+tasks.register('recommendationBenchmark', JavaExec) {
+    group = 'verification'
+    description = 'Runs the opt-in recommendation scoring comparison without DB or external providers.'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    if (providers.gradleProperty('benchmarkMainClasses').isPresent()) {
+        classpath = classpath.minus(files(sourceSets.main.output.classesDirs))
+                .plus(files(providers.gradleProperty('benchmarkMainClasses').get()))
+    }
+    mainClass = 'com.smartcloset.recommendation.domain.RecommendationScoringBenchmark'
+    jvmArgs '-Xms512m', '-Xmx512m'
+    args providers.gradleProperty('benchmarkMode').getOrElse('prepared')
+}
+
 checkstyle {
     configDirectory = file("${rootDir}/config/checkstyle")
     maxWarnings = 0
